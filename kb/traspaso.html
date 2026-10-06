@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>KairosBets · traspaso</title>
+  <!-- 06-oct-2026: KairosBets se mudó a https://kairosbets.pages.dev. Los datos del navegador van por sitio y se quedaron
+       aquí (kairoia.github.io). La app nueva abre esta página con su botón «Traer mis datos»: se leen las claves
+       kairosbets_… (temporadas, apuestas, claves de IA) y se mandan SOLO a la ventana que la abrió si es la app nueva.
+       Sin ventana que la abra, ofrece descargar una copia para «Cargar copia». No borra nada de aquí. -->
+  <style>
+    body { margin: 0; background: #0b0b0c; color: #f1eee6; font: 14px/1.5 ui-monospace, monospace; display: grid; place-items: center; min-height: 100vh; padding: 16px; box-sizing: border-box; }
+    main { max-width: 420px; }
+    h1 { font: 800 28px/1 "Arial Narrow", sans-serif; letter-spacing: 1px; color: #ffb21a; margin: 0 0 12px; text-transform: uppercase; }
+    p { color: #b8b3a8; }
+    button, a.b { display: block; width: 100%; padding: 13px; margin-top: 14px; border: 0; border-radius: 4px; background: #ffb21a; color: #0b0b0c; font: 600 12px ui-monospace, monospace; letter-spacing: 1.2px; text-transform: uppercase; text-align: center; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>KairosBets</h1>
+    <p id="msg">Leyendo tus datos…</p>
+    <div id="extra"></div>
+  </main>
+  <script>
+    const PERMITIDOS = ["https://kairosbets.pages.dev", "http://127.0.0.1:5182"];
+    const NUEVA = "https://kairosbets.pages.dev/";
+    const para = new URLSearchParams(location.search).get("para");
+    const datos = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("kairosbets_")) datos[k] = localStorage.getItem(k);
+      }
+    } catch (e) {}
+    const hay = "kairosbets_temporadas" in datos || "kairosbets_v4" in datos || "kairosbets_v3" in datos;
+    const msg = document.getElementById("msg"), extra = document.getElementById("extra");
+
+    function copia() {
+      // el mismo formato que «Guardar copia» de la app, para «Cargar copia»
+      const leer = (k) => { try { return JSON.parse(datos[k] || "null"); } catch (e) { return null; } };
+      let temporadas = leer("kairosbets_temporadas");
+      const apuestas = {};
+      if (temporadas && temporadas.lista) temporadas.lista.forEach((t) => (apuestas[t.id] = leer("kairosbets_apuestas_" + t.id) || []));
+      else {
+        const viejas = leer("kairosbets_v4") || leer("kairosbets_v3") || [];
+        temporadas = { activa: "t1", lista: [{ id: "t1", nombre: "Temporada 1", inicio: (viejas[0] || {}).date || "", fin: null, bankrollInicial: 15, stake: 15, archivada: false }] };
+        apuestas.t1 = viejas;
+      }
+      const blob = new Blob([JSON.stringify({ app: "KairosBets", version: 2, fecha: new Date().toISOString(), temporadas, apuestas }, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "kairosbets_copia_traspaso.json";
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    if (!hay) {
+      msg.textContent = "En esta dirección no hay apuestas guardadas en este navegador.";
+    } else if (window.opener && PERMITIDOS.includes(para)) {
+      window.opener.postMessage({ tipo: "kairosbets-traspaso", datos }, para);
+      msg.textContent = "Listo: tus datos ya van hacia la app nueva. Puedes cerrar esta pestaña y volver a KairosBets.";
+      setTimeout(() => window.close(), 1500);
+    } else {
+      msg.textContent = "KairosBets se ha mudado. Abre la app nueva y pulsa «Traer mis datos», o descarga aquí una copia para cargarla allí.";
+      extra.innerHTML = '<a class="b" href="' + NUEVA + '">Ir a la app nueva</a><button id="d">Descargar copia</button>';
+      document.getElementById("d").onclick = copia;
+    }
+  </script>
+</body>
+</html>
